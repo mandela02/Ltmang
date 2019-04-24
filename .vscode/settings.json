@@ -1,0 +1,13 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "string.h": "c",
+        "stdlib.h": "c",
+        "cstdlib": "c",
+        "stdio.h": "c",
+        "stat.h": "c",
+        "in.h": "c",
+        "unistd.h": "c",
+        "my_global.h": "c"
+    }
+}

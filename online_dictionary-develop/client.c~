@@ -1,0 +1,138 @@
+// gcc -o gladewin main.c -Wall `pkg-config --cflags --libs gtk+-3.0` -export-dynamic
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <gtk/gtk.h>
+
+#define MAXLINE 4096 /*max text line length*/
+#define SERV_PORT 3000 /*port*/
+
+GtkBuilder *builder; 
+GtkWidget *window;
+GtkWidget	*entry_word;
+GtkTextBuffer *text_mean;
+GtkWidget *tree_word;
+GtkListStore *list_word;
+GtkTreeSelection *tree_selection_word;
+
+int sockfd;
+struct sockaddr_in servaddr;
+char sendline[MAXLINE], recvline[MAXLINE];
+
+void add_to_list(const gchar *str){
+    // GtkListStore *list_store;
+    GtkTreeIter iter;
+
+    // store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(tree_name)));
+
+    gtk_list_store_append(list_word, &iter);
+    gtk_list_store_set(list_word, &iter, 0, str, -1);
+}
+
+void on_treeview_selection_word_changed(){
+    GtkTreeIter iter;
+    GtkTreeModel *model;
+    gchar* value;
+    char intro[MAXLINE];
+
+    if (gtk_tree_selection_get_selected(GTK_TREE_SELECTION(tree_selection_word), &model, &iter))
+    {
+        gtk_tree_model_get(model, &iter, 0, &value, -1);
+
+    
+        strcpy(sendline, value);
+        send(sockfd, sendline, strlen(sendline)+1, 0);
+
+        if (recv(sockfd, recvline, MAXLINE,0) == 0){
+        //error: server terminated prematurely
+        perror("The server terminated prematurely"); 
+        exit(4);
+        }
+        strcpy(intro, "String received from the server: ");
+        strcat(intro,recvline);
+
+        gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_mean), intro, -1);
+        g_free(value);
+    }
+}
+
+void on_entry_word_activate(){
+  const gchar *word = gtk_entry_get_text(GTK_ENTRY(entry_word));
+  strcpy(sendline,"\0");
+  strcpy(sendline, word);
+  gtk_entry_set_text(GTK_ENTRY(entry_word),"");
+  send(sockfd, sendline, strlen(sendline)+1, 0);
+		
+  if (recv(sockfd, recvline, MAXLINE,0) == 0){
+   //error: server terminated prematurely
+   perror("The server terminated prematurely"); 
+   exit(4);
+  }
+  char intro[MAXLINE];
+  strcpy(intro, "String received from the server: ");
+  strcat(intro,recvline);
+  gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_mean), intro, -1);
+}
+
+void on_window_main_destroy()
+{
+    gtk_main_quit();
+}
+
+int
+main(int argc, char **argv) 
+{	
+ //basic check of the arguments
+ //additional checks can be inserted
+ if (argc !=2) {
+  perror("Usage: TCPClient <IP address of the server"); 
+  exit(1);
+ }
+	
+ //Create a socket for the client
+ //If sockfd<0 there was an error in the creation of the socket
+ if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) <0) {
+  perror("Problem in creating the socket");
+  exit(2);
+ }
+	
+ //Creation of the socket
+ memset(&servaddr, 0, sizeof(servaddr));
+ servaddr.sin_family = AF_INET;
+ servaddr.sin_addr.s_addr= inet_addr(argv[1]);
+ servaddr.sin_port =  htons(SERV_PORT); //convert to big-endian order
+	
+ //Connection of the client to the socket 
+ if (connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr))<0) {
+  perror("Problem in connecting to the server");
+  exit(3);
+ }
+	
+ gtk_init(&argc, &argv);
+ builder = gtk_builder_new();
+ gtk_builder_add_from_file (builder, "Window.glade", NULL);
+ window = GTK_WIDGET(gtk_builder_get_object(builder, "window_main"));
+ gtk_builder_connect_signals(builder, NULL);
+ 
+
+ entry_word = GTK_WIDGET(gtk_builder_get_object(builder, "entry_word"));
+ text_mean = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "text_mean"));
+ tree_word = GTK_WIDGET(gtk_builder_get_object(builder,"tree_word"));
+ list_word = GTK_LIST_STORE(gtk_builder_get_object(builder,"list_word"));
+ tree_selection_word = GTK_TREE_SELECTION(gtk_builder_get_object(builder,"treeview_selection_word"));
+
+ g_object_unref(builder);
+ 
+ gtk_widget_show(window);             
+ gtk_main();
+ 
+
+ return 0;	
+
+ exit(0);
+}
+

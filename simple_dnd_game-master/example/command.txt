@@ -1,0 +1,9 @@
+Here save command
+
+cd ../../mnt/c/Users/Windows\ 10\ TIMT/Desktop/simple_dnd_gameN
+
+build multithread_server
+gcc -o multithreaded_client multithreaded_client.c -lnsl -lpthread
+
+build multithread_client
+gcc -o multithreaded_server multithreaded_server.c -lnsl -lpthread
